@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astronomical Object Locator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Astronomical Object Locator</h1>
+        <form id="locateForm">
+            <label for="date">Date:</label>
+            <input type="date" id="date" required>
+            <br />
+            <label for="time">Time:</label>
+            <input type="time" id="time" required>
+            <br />
+            <!-- <label for="latitude">Latitude:</label> -->
+            <!-- <input type="number" step="0.000001" id="latitude" required> -->
+            <!-- <br /> -->
+            <!-- <label for="longitude">Longitude:</label> -->
+            <!-- <input type="number" step="0.000001" id="longitude" required> -->
+            <!-- <br /> -->
+            <label for="objectName">Astronomical Object Name:</label>
+            <select id="objectName" required>
+                <option value="">Select an object</option>
+                <option value=0>Mercury</option>
+                <option value=1>Venus</option>
+                <option value=2>Earth</option>
+                <option value=3>Moon</option>
+                <option value=4>Mars</option>
+                <option value=5>Jupiter</option>
+                <option value=6>Saturn</option>
+                <option value=7>Uranus</option>
+                <option value=8>Neptune</option>
+                <option value=9>Ceres</option>
+                <option value=10>Vesta</option>
+                <option value=11>Pallas</option>
+                <option value=12>Sun</option>
+            </select>
+            <br />
+            <button type="submit">Locate Object</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
