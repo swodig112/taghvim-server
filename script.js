@@ -15,7 +15,7 @@ document.getElementById('locateForm').addEventListener('submit', function(event)
         objectName
     };
 
-    fetch('http://localhost:8081', {
+    fetch('http://taghvim.swodig.ir:8081', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
