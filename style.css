@@ -49,4 +49,6 @@ button {
     border: 1px solid #ddd;
     border-radius: 0.25em; /* ~4px */
     background: #e7f7e7;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
