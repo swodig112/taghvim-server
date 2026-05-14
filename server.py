@@ -32,7 +32,10 @@ def home():
     re = xyz[2*6:3*6]
     re = re[0::2]
     r, v = convert_to_metric(r, v)
-    alfa, delta = convert_earth(r, re)
+    if idx != 2:
+        alfa, delta = convert_earth(r, re)
+    else:
+        alfa, delta = None, None
     return {"rightAscension": alfa,
             "declination": delta,
             "position": r.tolist(),
