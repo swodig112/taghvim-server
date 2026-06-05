@@ -10,11 +10,27 @@ clear;
 
 tic
 
+% --- persistence / run control (edit these) ---
+RUN_DIR = 'sim_output';
+RESUME = true;              % load checkpoint.mat if present
+START_YEAR = 2019;            % calendar year at t = 0 (initial conditions epoch)
+END_YEAR = 2050;            % stop after this calendar year (lower to limit a run)
+SAVE_CHECKPOINT_EVERY = 10;   % write checkpoint every N macro-steps
+MACRO_SUBSTEPS = 1;           % >1 subdivides each macro-step for finer propagation
+ODE_OPTS = odeset('RelTol', 1e-13, 'AbsTol', 1e-15);
+PHYSICS_VERSION = 1;          % bump if F13Raccurated.m changes; invalidates old checkpoints
+MAX_ECLIPSE_EVENTS = 50000;
+if ~exist(RUN_DIR, 'dir'), mkdir(RUN_DIR); end
+years_dir = fullfile(RUN_DIR, 'years');
+if ~exist(years_dir, 'dir'), mkdir(years_dir); end
+ckpt_file = fullfile(RUN_DIR, 'checkpoint.mat');
+stop_file = fullfile(RUN_DIR, 'STOP');
+
 % initial conditions
 
 M10 = 1.9885e+30+(4.7014e+25)*1.3;         % Mass of the Sun
 Gamma = 3.289005921186269e+05;    % M10/(M3+M4)  :
-                           %Mass of the Sun/ (Mass of the Earth + Mass of the Moon)
+                                  %Mass of the Sun/ (Mass of the Earth + Mass of the Moon)
 Eta = 81.300559650988620;      % M3/M4 : Mass of the Earth/ Mass of the Moon
 
 m1 = 6023600;             % M10/M1  : Mass of the Sun/ Mass of the Mercury 
@@ -33,7 +49,7 @@ m13 = 9708737864.08;      % M10/M13  : Mass of the Sun/ Mass of the Pallas; M13/
 
 
 Mt = (m1^(-1)+m2^(-1)+m3^(-1)+m4^(-1)+m5^(-1)+m6^(-1)+...
-    m7^(-1)+m8^(-1)+m9^(-1)+m10^(-1)+m11^(-1)+m12^(-1)+m13^(-1))*M10;   % sum of 10 masses
+      m7^(-1)+m8^(-1)+m9^(-1)+m10^(-1)+m11^(-1)+m12^(-1)+m13^(-1))*M10;   % sum of 10 masses
 
 alfa1 = (M10/Mt)*m1^(-1);
 alfa2 = (M10/Mt)*m2^(-1);
@@ -110,182 +126,359 @@ s0(49) = x_neptune;  s0(50) = vx_neptune;  s0(51) = y_neptune;   s0(52) = vy_nep
 s0(55) = x_ceres;    s0(56) = vx_ceres;    s0(57) = y_ceres;     s0(58) = vy_ceres;     s0(59) = z_ceres;     s0(60) = vz_ceres;
 s0(61) = x_vesta;    s0(62) = vx_vesta;    s0(63) = y_vesta;     s0(64) = vy_vesta;     s0(65) = z_vesta;     s0(66) = vz_vesta;
 s0(67) = x_pallas;   s0(68) = vx_pallas;   s0(69) = y_pallas;    s0(70) = vy_pallas;    s0(71) = z_pallas;    s0(72) = vz_pallas;
-
+s0 = s0(1:72);
+s0=[-0.359908389879598,3.58809503736678,-0.220658235113841,-7.03495801631272,-0.0811887619074779,-4.13158369969412,-0.636863876474098,-3.42041039543361,0.291968958983771,-6.08385197715788,0.171524723503386,-2.52250306391652,0.0564699603232721,6.16771863305261,-0.925396489569892,0.289612048296327,-0.401310799790468,0.126997309143604,0.0550737842610446,5.9778694018671,-0.923594550779811,0.16384488056972,-0.400531021774922,0.0951969715522454,0.265921632655998,5.2103980003796,-1.27336146155268,1.30347250698305,-0.591360852346042,0.458679963632332,-4.02685343469696,1.80920091059223,-3.37570194694583,-1.75117986501784,-1.34712971808208,-0.793306256463426,0.255939952684971,1.91636340446311,-9.334481822299,0.0799986490231381,-3.89185040586728,-0.0524544192563376,16.7998459244305,-0.756193535620213,9.42171240670439,1.07540025746717,3.80890353284995,0.470961963759889,28.6430422159319,0.283771616194577,-6.87549443749156,1.04463754388244,-3.19877467461586,0.416391681091061,-2.43697575442123,-1.06311650311049,0.396960910578076,-3.6275019660885,0.683821759394055,-1.49402793951369,-0.107065884540838,4.41446048447448,-1.99871543661645,-0.0826111549856102,-0.78217474366401,-0.611095661809265,-0.879398090351474,-4.25992535536455,1.92743306852093,-2.00866572693579,-0.31685244248489,0.699344905230987,0.0015639648343384,0,0.00583704203520419,0,0.00239833238967724]
+s0 = s0(1:72);
 
 %x0cm = (alfa3*s0(13) + alfa4*s0(19))/(alfa3 + alfa4);
 %y0cm = (alfa3*s0(15) + alfa4*s0(21))/(alfa3 + alfa4);
 %psi03 = atand(y0cm/x0cm);
-AccuratedFactor=3;
-t0 = 0; 
-t1 = 0.001/AccuratedFactor;              %Accurated steps
-n = 1000*AccuratedFactor;                %Accurated steps
+DAYS_PER_YEAR = 365.25;
+n = 1000;                                % macro-steps per calendar year (saved to archive)
+dt_step = DAYS_PER_YEAR / n;
+dt_sub = dt_step / MACRO_SUBSTEPS;
+t0 = 0;
+t1 = dt_step;
 
 u = 1; v = 1;
-SolarTime = zeros(1:u,2);
-LunarTime = zeros(1:v,2);
+SolarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
+LunarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
 
-for h=2:3
+% --- resume from checkpoint or fresh start ---
+h_start = START_YEAR;
+m_start = 1;
+year_buf = [];
+resumed = false;
+if RESUME && isfile(ckpt_file)
+    C = load(ckpt_file);
+    ckpt = C.ckpt;
+    s0 = ckpt.s0(1:72);
+    t0 = ckpt.t0;
+    t1 = ckpt.t1;
+    h_start = ckpt.h;
+    m_start = ckpt.m;
+    if isfield(ckpt, 'physics_version')
+        if ckpt.physics_version ~= PHYSICS_VERSION
+            error('Checkpoint physics_version %d != current %d.', ckpt.physics_version, PHYSICS_VERSION);
+        end
+    else
+        warning('Checkpoint lacks physics_version; created before latest update.');
+    end
+    if isfield(ckpt, 'MACRO_SUBSTEPS') && ckpt.MACRO_SUBSTEPS ~= MACRO_SUBSTEPS
+        error('Checkpoint MACRO_SUBSTEPS (%d) != current (%d).', ckpt.MACRO_SUBSTEPS, MACRO_SUBSTEPS);
+    end
+    if isfield(ckpt, 'n') && ckpt.n ~= n
+        error('Checkpoint step count (%d) does not match n=%d.', ckpt.n, n);
+    end
+    if isfield(ckpt, 'dt_step') && abs(ckpt.dt_step - dt_step) > 1e-12
+        error('Checkpoint dt_step (%.12g) does not match current (%.12g).', ckpt.dt_step, dt_step);
+    end
+    if isfield(ckpt, 'START_YEAR') && ckpt.START_YEAR ~= START_YEAR
+        error('Checkpoint START_YEAR (%d) does not match current (%d).', ckpt.START_YEAR, START_YEAR);
+    end
+    expected_t0 = (h_start - START_YEAR) * DAYS_PER_YEAR + (m_start - 1) * dt_step;
+    if abs(t0 - expected_t0) > 1e-6
+        error('Checkpoint time t0=%.9f inconsistent with year/step (expected %.9f).', t0, expected_t0);
+    end
+    SolarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
+    LunarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
+    if size(ckpt.SolarTime, 1) > 0
+        n_ev = size(ckpt.SolarTime, 1);
+        SolarTime(1:n_ev, :) = ckpt.SolarTime;
+        u = n_ev + 1;
+    else
+        u = 1;
+    end
+    if size(ckpt.LunarTime, 1) > 0
+        n_ev = size(ckpt.LunarTime, 1);
+        LunarTime(1:n_ev, :) = ckpt.LunarTime;
+        v = n_ev + 1;
+    else
+        v = 1;
+    end
+    if isfield(ckpt, 'year_buf')
+        year_buf = ckpt.year_buf;
+    end
+    if isfile(stop_file)
+        delete(stop_file);
+        fprintf('Removed stale STOP file so run can continue.\n');
+    end
+    resumed = true;
+    fprintf('Resumed: year=%d step=%d/%d  t=%.6f days\n', h_start, m_start, n, t0);
+else
+    fprintf('Fresh start: year=%d  %d steps/year  dt=%.6f days\n', START_YEAR, n, dt_step);
+end
+
+ckpt = struct('s0', s0, 't0', t0, 't1', t1, 'h', h_start, 'm', m_start, ...
+              'u', u, 'v', v, 'SolarTime', SolarTime, 'LunarTime', LunarTime, ...
+              'year_buf', year_buf, 'START_YEAR', START_YEAR, 'n', n, ...
+              'dt_step', dt_step, 'DAYS_PER_YEAR', DAYS_PER_YEAR, ...
+              'physics_version', PHYSICS_VERSION, 'MACRO_SUBSTEPS', MACRO_SUBSTEPS);
+cleanupObj = onCleanup(@() save_sim_checkpoint(ckpt_file, ckpt));
+
+sim_stop = false;
+
+for h=h_start:END_YEAR
     
     alfa_m = zeros (10000,1);
     alfa_s = zeros (10000,1);
+
+    if h == h_start
+        m_begin = m_start;
+    else
+        m_begin = 1;
+    end
+
+    if isempty(year_buf) || ~isfield(year_buf, 'states') || year_buf.year ~= h
+        year_buf.states = zeros(n, 72);
+        year_buf.t = zeros(n, 1);
+        year_buf.t_start = zeros(n, 1);
+        year_buf.year = h;
+        year_buf.t_initial = t0;
+        year_buf.s_initial = s0(1:72);
+    elseif m_begin == 1 && ~isfield(year_buf, 's_initial')
+        year_buf.t_initial = t0;
+        year_buf.s_initial = s0(1:72);
+    end
     
-    
-for m=1:n   
-tspan = linspace(t0,t1,10001);
-[t s]  =  ode45('F13Raccurated', tspan, s0);
+    for m=m_begin:n   
+        year_buf.t_start(m) = t0;
+        t_macro_start = t0;
+        t_macro_end = t0 + dt_step;
+        s_macro_start = s0(1:72);
 
-%Defining x10 & y10 & z10; 10th body's position!
-
-x1 = s(:,1);    v1x = s(:,2);    y1 = s(:,3);    v1y = s(:,4);    z1 = s(:,5);    v1z = s(:,6);
-x2 = s(:,7);    v2x = s(:,8);    y2 = s(:,9);    v2y = s(:,10);   z2 = s(:,11);   v2z = s(:,12);
-x3 = s(:,13);   v3x = s(:,14);   y3 = s(:,15);   v3y = s(:,16);   z3 = s(:,17);   v3z = s(:,18);
-x4 = s(:,19);   v4x = s(:,20);   y4 = s(:,21);   v4y = s(:,22);   z4 = s(:,23);   v4z = s(:,24);
-x5 = s(:,25);   v5x = s(:,26);   y5 = s(:,27);   v5y = s(:,28);   z5 = s(:,29);   v5z = s(:,30);
-x6 = s(:,31);   v6x = s(:,32);   y6 = s(:,33);   v6y = s(:,34);   z6 = s(:,35);   v6z = s(:,36);
-x7 = s(:,37);   v7x = s(:,38);   y7 = s(:,39);   v7y = s(:,40);   z7 = s(:,41);   v7z = s(:,42);
-x8 = s(:,43);   v8x = s(:,44);   y8 = s(:,45);   v8y = s(:,46);   z8 = s(:,47);   v8z = s(:,48);
-x9 = s(:,49);   v9x = s(:,50);   y9 = s(:,51);   v9y = s(:,52);   z9 = s(:,53);   v9z = s(:,54);
-x11 = s(:,55);  v11x = s(:,56);  y11 = s(:,57);  v11y = s(:,58);  z11 = s(:,59);  v11z = s(:,60);
-x12 = s(:,61);  v12x = s(:,62);  y12 = s(:,63);  v12y = s(:,64);  z12 = s(:,65);  v12z = s(:,66);
-x13 = s(:,67);  v13x = s(:,68);  y13 = s(:,69);  v13y = s(:,70);  z13 = s(:,71);  v13z = s(:,72);
-
-
-s(:,73) = -(alfa1*x1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
-    alfa2*x2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
-    alfa3*x3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
-    alfa4*x4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
-    alfa5*x5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
-    alfa6*x6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
-    alfa7*x7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
-    alfa8*x8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
-    alfa9*x9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
-    alfa11*x11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
-    alfa12*x12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
-    alfa13*x13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
-
-s(:,75) = -(alfa1*y1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
-    alfa2*y2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
-    alfa3*y3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
-    alfa4*y4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
-    alfa5*y5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
-    alfa6*y6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
-    alfa7*y7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
-    alfa8*y8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
-    alfa9*y9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
-    alfa11*y11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
-    alfa12*y12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
-    alfa13*y13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
-
-s(:,77) = -(alfa1*z1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
-    alfa2*z2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
-    alfa3*z3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
-    alfa4*z4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
-    alfa5*z5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
-    alfa6*z6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
-    alfa7*z7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
-    alfa8*z8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
-    alfa9*z9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
-    alfa11*z11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
-    alfa12*z12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
-    alfa13*z13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
-
-
-t = t(1:end-1,:);    
-xyz = s(1:end-1,1:2:77);
-
-s0 = s(end,:);
-t0 = t1;
-t1 = t1 + 0.001/AccuratedFactor;              %Accurated steps
-
-%Defining equatorial coordinates for Moon and Sun: declination(delta) & right ascension(alpha)
-
-xe = xyz(:,7);       ye = xyz(:,8);          ze = xyz(:,9);    
- xm = xyz(:,10);       ym = xyz(:,11);          zm = xyz(:,12);
-  xs = xyz(:,37);        ys = xyz(:,38);           zs = xyz(:,39);
-
-Rm = sqrt((xm-xe).^2+(ym-ye).^2+(zm-ze).^2);
-Rs = sqrt((xs-xe).^2+(ys-ye).^2+(zs-ze).^2);
-
-delta_m = asin((zm-ze)./Rm);
-
-salfa_m = (ym-ye)./(Rm.*abs(cos(delta_m)));
-
-
-for l=1:length(salfa_m) 
-if salfa_m(l,1)>0
-    alfa_m(l,1) = real(acos((xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
-else
-        alfa_m(l,1) = real(pi+acos(-(xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
-end
-end
-
-delta_s = asin((zs-ze)./Rs);
-
-salfa_s = (ys-ye)./(Rs.*abs(cos(delta_s)));
-
-
-for l=1:length(salfa_s) 
-if salfa_s(l,1)>0
-    alfa_s(l,1) = real(acos((xs(l,1)-xe(l,1))/((Rs(l,1))*abs(cos(delta_s(l,1))))));
-else
-        alfa_s(l,1) = real(pi+acos(-(xs(l,1)-xe(l,1))/(Rs(l,1)*abs(cos(delta_s(l,1))))));
-end
-end
-
-%xcm = (alfa3*xe + alfa4*xm)/(alfa3 + alfa4);
-%ycm = (alfa3*ye + alfa4*ym)/(alfa3 + alfa4);
-%psi3 = atand(ycm./xcm);
-beta = acosd(cos(delta_s).*cos(alfa_s).*cos(delta_m).*cos(alfa_m)+...
-    cos(delta_s).*sin(alfa_s).*cos(delta_m).*sin(alfa_m)+...
-    sin(delta_s).*sin(delta_m));
-   
-W = t*P0;
-
-MEx = xm-xe;   MEy = ym-ye;   MEz = zm-ze;
-SMx = xs-xm;   SMy = ys-ym;   SMz = zs-zm;
-SEx = xs-xe;   SEy = ys-ye;   SEz = zs-ze;
-
-dE = sqrt((MEy.*SMz - MEz.*SMy).^2 + (MEz.*SMx - MEx.*SMz).^2 +...
-    (MEx.*SMy - MEy.*SMx).^2)./sqrt(SMx.^2+SMy.^2+SMz.^2);
-
-dM = sqrt((MEy.*SEz - MEz.*SEy).^2 + (MEz.*SEx - MEx.*SEz).^2 +...
-    (MEx.*SEy - MEy.*SEx).^2)./sqrt(SEx.^2+SEy.^2+SEz.^2);
-
-%InterPolating!
-
-ti = t(1,1):(t(2,1)-t(1,1))/10:t(end,1);
-betai = interp1(t,beta,ti);
-Wi = interp1(t,W,ti);
-dEi = interp1(t,dE,ti);
-dMi = interp1(t,dM,ti);
-
-%Predicting time of solar & lunar eclipse!
-
-ddE = diff(dEi); 
-ddM = diff(dMi); 
-
-for l=1:(length(ddE)-1);
-        if betai(l)<1
-            if (ddE(l)<0)&&(ddE(l+1)>0)
-               SolarTime(u,:) = [Wi(l+1) dEi(l+1)];
-               u = u+1;
+        if MACRO_SUBSTEPS > 1
+            s0 = s_macro_start;
+            t_sub = t_macro_start;
+            n_sub_pts = max(101, ceil(10001 / MACRO_SUBSTEPS));
+            for k_sub = 1:MACRO_SUBSTEPS
+                t_sub_next = t_sub + dt_sub;
+                tspan = linspace(t_sub, t_sub_next, n_sub_pts);
+                [~, s_sub] = ode45('F13Raccurated', tspan, s0, ODE_OPTS);
+                s0 = s_sub(end, 1:72);
+                t_sub = t_sub_next;
             end
-           
-        end  
-end
+            t_macro_end = t_sub;
+        end
+
+        tspan = linspace(t_macro_start, t_macro_end, 10001);
+        [t s]  =  ode45('F13Raccurated', tspan, s_macro_start, ODE_OPTS);
+        s0 = s(end, 1:72);
+        t1 = t_macro_end;
+
+        %Defining x10 & y10 & z10; 10th body's position!
+
+        x1 = s(:,1);    v1x = s(:,2);    y1 = s(:,3);    v1y = s(:,4);    z1 = s(:,5);    v1z = s(:,6);
+        x2 = s(:,7);    v2x = s(:,8);    y2 = s(:,9);    v2y = s(:,10);   z2 = s(:,11);   v2z = s(:,12);
+        x3 = s(:,13);   v3x = s(:,14);   y3 = s(:,15);   v3y = s(:,16);   z3 = s(:,17);   v3z = s(:,18);
+        x4 = s(:,19);   v4x = s(:,20);   y4 = s(:,21);   v4y = s(:,22);   z4 = s(:,23);   v4z = s(:,24);
+        x5 = s(:,25);   v5x = s(:,26);   y5 = s(:,27);   v5y = s(:,28);   z5 = s(:,29);   v5z = s(:,30);
+        x6 = s(:,31);   v6x = s(:,32);   y6 = s(:,33);   v6y = s(:,34);   z6 = s(:,35);   v6z = s(:,36);
+        x7 = s(:,37);   v7x = s(:,38);   y7 = s(:,39);   v7y = s(:,40);   z7 = s(:,41);   v7z = s(:,42);
+        x8 = s(:,43);   v8x = s(:,44);   y8 = s(:,45);   v8y = s(:,46);   z8 = s(:,47);   v8z = s(:,48);
+        x9 = s(:,49);   v9x = s(:,50);   y9 = s(:,51);   v9y = s(:,52);   z9 = s(:,53);   v9z = s(:,54);
+        x11 = s(:,55);  v11x = s(:,56);  y11 = s(:,57);  v11y = s(:,58);  z11 = s(:,59);  v11z = s(:,60);
+        x12 = s(:,61);  v12x = s(:,62);  y12 = s(:,63);  v12y = s(:,64);  z12 = s(:,65);  v12z = s(:,66);
+        x13 = s(:,67);  v13x = s(:,68);  y13 = s(:,69);  v13y = s(:,70);  z13 = s(:,71);  v13z = s(:,72);
 
 
-for l=1:(length(ddM)-1);
-        if betai(l)>178.44
-            if (ddM(l)<0)&&(ddM(l+1)>0)
-            LunarTime(v,:) = [Wi(l+1) dMi(l+1)];
-            v = v+1;
+        s(:,73) = -(alfa1*x1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+                    alfa2*x2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+                    alfa3*x3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+                    alfa4*x4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+                    alfa5*x5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+                    alfa6*x6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+                    alfa7*x7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+                    alfa8*x8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+                    alfa9*x9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+                    alfa11*x11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+                    alfa12*x12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+                    alfa13*x13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
+
+        s(:,75) = -(alfa1*y1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+                    alfa2*y2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+                    alfa3*y3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+                    alfa4*y4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+                    alfa5*y5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+                    alfa6*y6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+                    alfa7*y7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+                    alfa8*y8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+                    alfa9*y9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+                    alfa11*y11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+                    alfa12*y12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+                    alfa13*y13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
+
+        s(:,77) = -(alfa1*z1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+                    alfa2*z2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+                    alfa3*z3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+                    alfa4*z4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+                    alfa5*z5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+                    alfa6*z6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+                    alfa7*z7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+                    alfa8*z8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+                    alfa9*z9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+                    alfa11*z11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+                    alfa12*z12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+                    alfa13*z13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
+
+
+        t = t(1:end-1,:);    
+        xyz = s(1:end-1,1:2:77);
+
+        year_buf.states(m, :) = s0(1:72);
+        year_buf.t(m) = t1;
+
+        t0 = t1;
+        t1 = t0 + dt_step;
+
+        %Defining equatorial coordinates for Moon and Sun: declination(delta) & right ascension(alpha)
+
+        xe = xyz(:,7);       ye = xyz(:,8);          ze = xyz(:,9);    
+        xm = xyz(:,10);       ym = xyz(:,11);          zm = xyz(:,12);
+        xs = xyz(:,37);        ys = xyz(:,38);           zs = xyz(:,39);
+
+        Rm = sqrt((xm-xe).^2+(ym-ye).^2+(zm-ze).^2);
+        Rs = sqrt((xs-xe).^2+(ys-ye).^2+(zs-ze).^2);
+
+        delta_m = asin((zm-ze)./Rm);
+
+        salfa_m = (ym-ye)./(Rm.*abs(cos(delta_m)));
+
+
+        for l=1:length(salfa_m) 
+            if salfa_m(l,1)>0
+                alfa_m(l,1) = real(acos((xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
+            else
+                alfa_m(l,1) = real(pi+acos(-(xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
             end
         end
-end
+
+        delta_s = asin((zs-ze)./Rs);
+
+        salfa_s = (ys-ye)./(Rs.*abs(cos(delta_s)));
+
+
+        for l=1:length(salfa_s) 
+            if salfa_s(l,1)>0
+                alfa_s(l,1) = real(acos((xs(l,1)-xe(l,1))/((Rs(l,1))*abs(cos(delta_s(l,1))))));
+            else
+                alfa_s(l,1) = real(pi+acos(-(xs(l,1)-xe(l,1))/(Rs(l,1)*abs(cos(delta_s(l,1))))));
+            end
+        end
+
+        %xcm = (alfa3*xe + alfa4*xm)/(alfa3 + alfa4);
+        %ycm = (alfa3*ye + alfa4*ym)/(alfa3 + alfa4);
+        %psi3 = atand(ycm./xcm);
+        beta = acosd(cos(delta_s).*cos(alfa_s).*cos(delta_m).*cos(alfa_m)+...
+                     cos(delta_s).*sin(alfa_s).*cos(delta_m).*sin(alfa_m)+...
+                     sin(delta_s).*sin(delta_m));
+        
+        W = t*P0;
+
+        MEx = xm-xe;   MEy = ym-ye;   MEz = zm-ze;
+        SMx = xs-xm;   SMy = ys-ym;   SMz = zs-zm;
+        SEx = xs-xe;   SEy = ys-ye;   SEz = zs-ze;
+
+        dE = sqrt((MEy.*SMz - MEz.*SMy).^2 + (MEz.*SMx - MEx.*SMz).^2 +...
+                  (MEx.*SMy - MEy.*SMx).^2)./sqrt(SMx.^2+SMy.^2+SMz.^2);
+
+        dM = sqrt((MEy.*SEz - MEz.*SEy).^2 + (MEz.*SEx - MEx.*SEz).^2 +...
+                  (MEx.*SEy - MEy.*SEx).^2)./sqrt(SEx.^2+SEy.^2+SEz.^2);
+
+        %InterPolating!
+
+        ti = t(1,1):(t(2,1)-t(1,1))/10:t(end,1);
+        betai = interp1(t,beta,ti);
+        Wi = interp1(t,W,ti);
+        dEi = interp1(t,dE,ti);
+        dMi = interp1(t,dM,ti);
+
+        %Predicting time of solar & lunar eclipse!
+
+        ddE = diff(dEi); 
+        ddM = diff(dMi); 
+
+        % for l=1:(length(ddE)-1);
+        %     if betai(l)<1
+        %         if (ddE(l)<0)&&(ddE(l+1)>0)
+        %             if u > MAX_ECLIPSE_EVENTS
+        %                 error('SolarTime buffer full (%d). Increase MAX_ECLIPSE_EVENTS.', MAX_ECLIPSE_EVENTS);
+        %             end
+        %             SolarTime(u,:) = [Wi(l+1) dEi(l+1)];
+        %             u = u+1;
+        %         end
+                
+        %     end  
+        % end
+
+
+        % for l=1:(length(ddM)-1);
+        %     if betai(l)>178.44
+        %         if (ddM(l)<0)&&(ddM(l+1)>0)
+        %             if v > MAX_ECLIPSE_EVENTS
+        %                 error('LunarTime buffer full (%d). Increase MAX_ECLIPSE_EVENTS.', MAX_ECLIPSE_EVENTS);
+        %             end
+        %             LunarTime(v,:) = [Wi(l+1) dMi(l+1)];
+        %             v = v+1;
+        %         end
+        %     end
+        % end
+
+        ckpt.s0 = s0(1:72);
+        ckpt.t0 = t0;
+        ckpt.t1 = t1;
+        ckpt.h = h;
+        ckpt.m = m + 1;
+        ckpt.u = u;
+        ckpt.v = v;
+        ckpt.SolarTime = SolarTime;
+        ckpt.LunarTime = LunarTime;
+        ckpt.year_buf = year_buf;
+        if mod(m, SAVE_CHECKPOINT_EVERY) == 0
+            save_sim_checkpoint(ckpt_file, ckpt);
+        end
+
+        if isfile(stop_file)
+            sim_stop = true;
+            fprintf('STOP file detected. Saving checkpoint at year=%d step=%d\n', h, m);
+            delete(stop_file);
+            save_sim_checkpoint(ckpt_file, ckpt);
+            break;
+        end
+
+    end
+
+    if m == n
+        year_file = fullfile(years_dir, sprintf('year_%d.mat', h));
+        if isfile(year_file)
+            error('Year archive already exists: %s. Use a new RUN_DIR or remove it.', year_file);
+        end
+        year_tmp = [year_file '.tmp'];
+        save(year_tmp, 'year_buf', 'h', 'START_YEAR', 'DAYS_PER_YEAR', 'n', ...
+             'dt_step', 'P0', 'MACRO_SUBSTEPS', '-v6');
+        movefile(year_tmp, year_file, 'f');
+        fprintf('Saved year archive: %s\n', year_file);
+        year_buf = [];
+        ckpt.s0 = s0(1:72);
+        ckpt.t0 = t0;
+        ckpt.t1 = t1;
+        ckpt.year_buf = year_buf;
+        ckpt.h = h + 1;
+        ckpt.m = 1;
+        save_sim_checkpoint(ckpt_file, ckpt);
+    end
+
+    if sim_stop
+        break;
+    end
 
 end
 
+save_sim_checkpoint(ckpt_file, ckpt);
+if sim_stop
+    fprintf('Simulation paused. Re-run with RESUME=true to continue.\n');
+else
+    fprintf('Simulation finished through year %d.\n', END_YEAR);
 end
 
 toc

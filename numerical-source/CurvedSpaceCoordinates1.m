@@ -65,27 +65,27 @@ lz =@(r)sqrt(r.^3./((r-rs).*(r.^2-(K(1,3)).^2)));   %integral function for z coo
 
 coordinates = zeros(9,3);     %result Matrix 
 for i=1:9                     %x - Barycentric coordinates
-        if s(i,1)<0
-           coordinates(i,1) =  -quad(lx,rBC,rprim(i,1),10^-16);
-        else
-           coordinates(i,1) =  quad(lx,rBC,rprim(i,1),10^-16)+2*s(10,1);
-        end
+    if s(i,1)<0
+        coordinates(i,1) =  -quad(lx,rBC,rprim(i,1),10^-16);
+    else
+        coordinates(i,1) =  quad(lx,rBC,rprim(i,1),10^-16)+2*s(10,1);
+    end
 end
 
 for i=1:9                     %y - Barycentric coordinates
-        if s(i,2)<0
-           coordinates(i,2) =  -quad(ly,rBC,rprim(i,2),10^-16);
-        else
-           coordinates(i,2) =  quad(ly,rBC,rprim(i,2),10^-16)-2*s(10,2);
-        end
+    if s(i,2)<0
+        coordinates(i,2) =  -quad(ly,rBC,rprim(i,2),10^-16);
+    else
+        coordinates(i,2) =  quad(ly,rBC,rprim(i,2),10^-16)-2*s(10,2);
+    end
 end
 
 for i=1:9                     %z - Barycentric coordinates
-        if s(i,3)<0
-           coordinates(i,3) =  -quad(lz,rBC,rprim(i,3),10^-16);
-        else
-           coordinates(i,3) =  quad(lz,rBC,rprim(i,3),10^-16)-2*s(10,3);
-        end
+    if s(i,3)<0
+        coordinates(i,3) =  -quad(lz,rBC,rprim(i,3),10^-16);
+    else
+        coordinates(i,3) =  quad(lz,rBC,rprim(i,3),10^-16)-2*s(10,3);
+    end
 end
 
 
@@ -142,65 +142,65 @@ v(10,3)= 0.00000222910220557907;     %Vz Sun barycentric
 velocities = zeros(9,3);     %result Matrix 
 
 for n=1:3
-fr1(n) = rBC*sqrt(rBC/((rBC-rs)*(rBC^2-K(1,n)^2)));
-gama(n) = 1/(1-v(10,n)^2/ca^2)          %Lorants factores
+    fr1(n) = rBC*sqrt(rBC/((rBC-rs)*(rBC^2-K(1,n)^2)));
+    gama(n) = 1/(1-v(10,n)^2/ca^2)          %Lorants factores
 end
 gx =@(r)r.^(3/2).*(r-rs).^(-1/2).*(r.^2-K(1,1).^2).^(-3/2);   %integral function for gx function
 gy =@(r)r.^(3/2).*(r-rs).^(-1/2).*(r.^2-K(1,2).^2).^(-3/2);   %integral function for gy function
 gz =@(r)r.^(3/2).*(r-rs).^(-1/2).*(r.^2-K(1,3).^2).^(-3/2);   %integral function for gx function
 
 for i=1:9                     %x - Barycentric velocities
-        if s(i,1)<0
+    if s(i,1)<0
         fr2(i,1) = rprim(1,1)*sqrt(rprim(1,1)/((rprim(1,1)-rs)*(rprim(1,1)^2-K(1,1)^2)));
         Gy(i,1) = quad(gx,rBC,rprim(i,1),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(1)= fr1(1);
-        else
+    else
         fr2(i,1) = -rprim(1,1)*sqrt(rprim(1,1)/((rprim(1,1)-rs)*(rprim(1,1)^2-K(1,1)^2)));
         Gy(i,1) =  -quad(gx,rBC,rprim(i,1),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(1)= fr1(1);
-        end
-        
-        deltau2(i,1) = (s(10,2)*v(10,2)+s(10,3)*v(10,3)+s(i,1)*v(i,1))/rprim(i,1);
-        
-        velocities(i,1) = gama(1)*(fr1(1)*deltau1- fr2(i,1)*deltau2(i,1)-(s(10,2)*v(10,2)+s(10,3)*v(10,3))*Gy(i,1))
+    end
+    
+    deltau2(i,1) = (s(10,2)*v(10,2)+s(10,3)*v(10,3)+s(i,1)*v(i,1))/rprim(i,1);
+    
+    velocities(i,1) = gama(1)*(fr1(1)*deltau1- fr2(i,1)*deltau2(i,1)-(s(10,2)*v(10,2)+s(10,3)*v(10,3))*Gy(i,1))
 
 end
 for i=1:9                     %y - Barycentric velocities
-        if s(i,2)<0
+    if s(i,2)<0
         fr2(i,2) = rprim(1,2)*sqrt(rprim(1,2)/((rprim(1,2)-rs)*(rprim(1,2)^2-K(1,2)^2)));
         Gy(i,2) =  quad(gy,rBC,rprim(i,2),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(2)= fr1(2);
-        else
+    else
         fr2(i,2) = -rprim(1,2)*sqrt(rprim(1,2)/((rprim(1,2)-rs)*(rprim(1,2)^2-K(1,2)^2)));
         Gy(i,2) =  -quad(gy,rBC,rprim(i,2),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(2)= -fr1(2);
-        end
-        
-        deltau2(i,2) = (s(10,1)*v(10,1)+s(10,3)*v(10,3)+s(i,2)*v(i,2))/rprim(i,2);
-        
-        velocities(i,2) = gama(2)*(fr1(2)*deltau1- fr2(i,2)*deltau2(i,2)-(s(10,1)*v(10,1)+s(10,3)*v(10,3))*Gy(i,2))
+    end
+    
+    deltau2(i,2) = (s(10,1)*v(10,1)+s(10,3)*v(10,3)+s(i,2)*v(i,2))/rprim(i,2);
+    
+    velocities(i,2) = gama(2)*(fr1(2)*deltau1- fr2(i,2)*deltau2(i,2)-(s(10,1)*v(10,1)+s(10,3)*v(10,3))*Gy(i,2))
 
 end
 for i=1:9                     %z - Barycentric velocities
-        if s(i,3)<0
+    if s(i,3)<0
         fr2(i,3) = rprim(1,3)*sqrt(rprim(1,3)/((rprim(1,3)-rs)*(rprim(1,3)^2-K(1,3)^2)));
         Gy(i,3) =  quad(gz,rBC,rprim(i,3),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(3)= fr1(3);
-        else
+    else
         fr2(i,3) = -rprim(1,3)*sqrt(rprim(1,3)/((rprim(1,3)-rs)*(rprim(1,3)^2-K(1,3)^2)));
         Gy(i,1) =  -quad(gz,rBC,rprim(i,3),10^-11);
         deltau1 = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(10,3)*v(10,3))/rBC;
         fr1(3)= -fr1(3);
-        end
-        
-        deltau2(i,3) = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(i,3)*v(i,3))/rprim(i,3);
-        
-        velocities(i,3) = gama(3)*(fr1(3)*deltau1- fr2(i,3)*deltau2(i,3)-(s(10,1)*v(10,1)+s(10,2)*v(10,2))*Gy(i,3));
+    end
+    
+    deltau2(i,3) = (s(10,1)*v(10,1)+s(10,2)*v(10,2)+s(i,3)*v(i,3))/rprim(i,3);
+    
+    velocities(i,3) = gama(3)*(fr1(3)*deltau1- fr2(i,3)*deltau2(i,3)-(s(10,1)*v(10,1)+s(10,2)*v(10,2))*Gy(i,3));
 
 end
 vxM_E= 0.00060108481665912983;
