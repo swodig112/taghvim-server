@@ -13,9 +13,9 @@ tic
 % --- persistence / run control (edit these) ---
 RUN_DIR = 'sim_output';
 RESUME = true;              % load checkpoint.mat if present
-START_YEAR = 2019;            % calendar year at t = 0 (initial conditions epoch)
+START_YEAR = 1969;            % calendar year at t = 0 (initial conditions epoch)
 END_YEAR = 2050;            % stop after this calendar year (lower to limit a run)
-SAVE_CHECKPOINT_EVERY = 10;   % write checkpoint every N macro-steps
+SAVE_CHECKPOINT_EVERY = 1;   % write checkpoint every N macro-steps
 MACRO_SUBSTEPS = 1;           % >1 subdivides each macro-step for finer propagation
 ODE_OPTS = odeset('RelTol', 1e-13, 'AbsTol', 1e-15);
 PHYSICS_VERSION = 1;          % bump if F13Raccurated.m changes; invalidates old checkpoints
@@ -127,8 +127,8 @@ s0(55) = x_ceres;    s0(56) = vx_ceres;    s0(57) = y_ceres;     s0(58) = vy_cer
 s0(61) = x_vesta;    s0(62) = vx_vesta;    s0(63) = y_vesta;     s0(64) = vy_vesta;     s0(65) = z_vesta;     s0(66) = vz_vesta;
 s0(67) = x_pallas;   s0(68) = vx_pallas;   s0(69) = y_pallas;    s0(70) = vy_pallas;    s0(71) = z_pallas;    s0(72) = vz_pallas;
 s0 = s0(1:72);
-s0=[-0.359908389879598,3.58809503736678,-0.220658235113841,-7.03495801631272,-0.0811887619074779,-4.13158369969412,-0.636863876474098,-3.42041039543361,0.291968958983771,-6.08385197715788,0.171524723503386,-2.52250306391652,0.0564699603232721,6.16771863305261,-0.925396489569892,0.289612048296327,-0.401310799790468,0.126997309143604,0.0550737842610446,5.9778694018671,-0.923594550779811,0.16384488056972,-0.400531021774922,0.0951969715522454,0.265921632655998,5.2103980003796,-1.27336146155268,1.30347250698305,-0.591360852346042,0.458679963632332,-4.02685343469696,1.80920091059223,-3.37570194694583,-1.75117986501784,-1.34712971808208,-0.793306256463426,0.255939952684971,1.91636340446311,-9.334481822299,0.0799986490231381,-3.89185040586728,-0.0524544192563376,16.7998459244305,-0.756193535620213,9.42171240670439,1.07540025746717,3.80890353284995,0.470961963759889,28.6430422159319,0.283771616194577,-6.87549443749156,1.04463754388244,-3.19877467461586,0.416391681091061,-2.43697575442123,-1.06311650311049,0.396960910578076,-3.6275019660885,0.683821759394055,-1.49402793951369,-0.107065884540838,4.41446048447448,-1.99871543661645,-0.0826111549856102,-0.78217474366401,-0.611095661809265,-0.879398090351474,-4.25992535536455,1.92743306852093,-2.00866572693579,-0.31685244248489,0.699344905230987,0.0015639648343384,0,0.00583704203520419,0,0.00239833238967724]
-s0 = s0(1:72);
+% s0=[-0.359908389879598,3.58809503736678,-0.220658235113841,-7.03495801631272,-0.0811887619074779,-4.13158369969412,-0.636863876474098,-3.42041039543361,0.291968958983771,-6.08385197715788,0.171524723503386,-2.52250306391652,0.0564699603232721,6.16771863305261,-0.925396489569892,0.289612048296327,-0.401310799790468,0.126997309143604,0.0550737842610446,5.9778694018671,-0.923594550779811,0.16384488056972,-0.400531021774922,0.0951969715522454,0.265921632655998,5.2103980003796,-1.27336146155268,1.30347250698305,-0.591360852346042,0.458679963632332,-4.02685343469696,1.80920091059223,-3.37570194694583,-1.75117986501784,-1.34712971808208,-0.793306256463426,0.255939952684971,1.91636340446311,-9.334481822299,0.0799986490231381,-3.89185040586728,-0.0524544192563376,16.7998459244305,-0.756193535620213,9.42171240670439,1.07540025746717,3.80890353284995,0.470961963759889,28.6430422159319,0.283771616194577,-6.87549443749156,1.04463754388244,-3.19877467461586,0.416391681091061,-2.43697575442123,-1.06311650311049,0.396960910578076,-3.6275019660885,0.683821759394055,-1.49402793951369,-0.107065884540838,4.41446048447448,-1.99871543661645,-0.0826111549856102,-0.78217474366401,-0.611095661809265,-0.879398090351474,-4.25992535536455,1.92743306852093,-2.00866572693579,-0.31685244248489,0.699344905230987,0.0015639648343384,0,0.00583704203520419,0,0.00239833238967724]
+% s0 = s0(1:72);
 
 %x0cm = (alfa3*s0(13) + alfa4*s0(19))/(alfa3 + alfa4);
 %y0cm = (alfa3*s0(15) + alfa4*s0(21))/(alfa3 + alfa4);
@@ -137,7 +137,7 @@ DAYS_PER_YEAR = 365.25;
 n = 1000;                                % macro-steps per calendar year (saved to archive)
 dt_step = DAYS_PER_YEAR / n;
 dt_sub = dt_step / MACRO_SUBSTEPS;
-t0 = 0;
+t0 = 0.0;
 t1 = dt_step;
 
 u = 1; v = 1;
@@ -157,6 +157,7 @@ if RESUME && isfile(ckpt_file)
     t1 = ckpt.t1;
     h_start = ckpt.h;
     m_start = ckpt.m;
+    fprintf("m_start: %d\n", m_start);
     if isfield(ckpt, 'physics_version')
         if ckpt.physics_version ~= PHYSICS_VERSION
             error('Checkpoint physics_version %d != current %d.', ckpt.physics_version, PHYSICS_VERSION);
@@ -182,20 +183,20 @@ if RESUME && isfile(ckpt_file)
     end
     SolarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
     LunarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
-    if size(ckpt.SolarTime, 1) > 0
-        n_ev = size(ckpt.SolarTime, 1);
-        SolarTime(1:n_ev, :) = ckpt.SolarTime;
-        u = n_ev + 1;
-    else
-        u = 1;
-    end
-    if size(ckpt.LunarTime, 1) > 0
-        n_ev = size(ckpt.LunarTime, 1);
-        LunarTime(1:n_ev, :) = ckpt.LunarTime;
-        v = n_ev + 1;
-    else
-        v = 1;
-    end
+    % if size(ckpt.SolarTime, 1) > 0
+    %     n_ev = size(ckpt.SolarTime, 1);
+    %     SolarTime(1:n_ev, :) = ckpt.SolarTime;
+    %     u = n_ev + 1;
+    % else
+    %     u = 1;
+    % end
+    % if size(ckpt.LunarTime, 1) > 0
+    %     n_ev = size(ckpt.LunarTime, 1);
+    %     LunarTime(1:n_ev, :) = ckpt.LunarTime;
+    %     v = n_ev + 1;
+    % else
+    %     v = 1;
+    % end
     if isfield(ckpt, 'year_buf')
         year_buf = ckpt.year_buf;
     end
@@ -241,25 +242,26 @@ for h=h_start:END_YEAR
         year_buf.s_initial = s0(1:72);
     end
     
-    for m=m_begin:n   
+    for m=m_begin:n
+        fprintf('at step %d \n', m);
         year_buf.t_start(m) = t0;
         t_macro_start = t0;
         t_macro_end = t0 + dt_step;
         s_macro_start = s0(1:72);
 
-        if MACRO_SUBSTEPS > 1
-            s0 = s_macro_start;
-            t_sub = t_macro_start;
-            n_sub_pts = max(101, ceil(10001 / MACRO_SUBSTEPS));
-            for k_sub = 1:MACRO_SUBSTEPS
-                t_sub_next = t_sub + dt_sub;
-                tspan = linspace(t_sub, t_sub_next, n_sub_pts);
-                [~, s_sub] = ode45('F13Raccurated', tspan, s0, ODE_OPTS);
-                s0 = s_sub(end, 1:72);
-                t_sub = t_sub_next;
-            end
-            t_macro_end = t_sub;
-        end
+        % if MACRO_SUBSTEPS > 1
+        %     s0 = s_macro_start;
+        %     t_sub = t_macro_start;
+        %     n_sub_pts = max(101, ceil(10001 / MACRO_SUBSTEPS));
+        %     for k_sub = 1:MACRO_SUBSTEPS
+        %         t_sub_next = t_sub + dt_sub;
+        %         tspan = linspace(t_sub, t_sub_next, n_sub_pts);
+        %         [~, s_sub] = ode45('F13Raccurated', tspan, s0, ODE_OPTS);
+        %         s0 = s_sub(end, 1:72);
+        %         t_sub = t_sub_next;
+        %     end
+        %     t_macro_end = t_sub;
+        % end
 
         tspan = linspace(t_macro_start, t_macro_end, 10001);
         [t s]  =  ode45('F13Raccurated', tspan, s_macro_start, ODE_OPTS);
@@ -429,8 +431,8 @@ for h=h_start:END_YEAR
         ckpt.t1 = t1;
         ckpt.h = h;
         ckpt.m = m + 1;
-        ckpt.u = u;
-        ckpt.v = v;
+        ckpt.u = 0;
+        ckpt.v = 0;
         ckpt.SolarTime = SolarTime;
         ckpt.LunarTime = LunarTime;
         ckpt.year_buf = year_buf;
@@ -455,7 +457,7 @@ for h=h_start:END_YEAR
         end
         year_tmp = [year_file '.tmp'];
         save(year_tmp, 'year_buf', 'h', 'START_YEAR', 'DAYS_PER_YEAR', 'n', ...
-             'dt_step', 'P0', 'MACRO_SUBSTEPS', '-v6');
+             'dt_step', 'P0', 'MACRO_SUBSTEPS', '-v4');
         movefile(year_tmp, year_file, 'f');
         fprintf('Saved year archive: %s\n', year_file);
         year_buf = [];

@@ -11,6 +11,8 @@ if ckpt.v > 1
 else
     ckpt_out.LunarTime = zeros(0, 2);
 end
+fprintf("v: %d, u: %d\n", ckpt.v, ckpt.u)
+fprintf("m: %d\n", ckpt.m)
 ckpt_out.s0 = ckpt_out.s0(1:72);
 tmp = [ckpt_file '.tmp'];
 save(tmp, 'ckpt', '-v6');
