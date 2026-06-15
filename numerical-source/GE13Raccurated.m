@@ -112,6 +112,25 @@ s0(61) = x_vesta;    s0(62) = vx_vesta;    s0(63) = y_vesta;     s0(64) = vy_ves
 s0(67) = x_pallas;   s0(68) = vx_pallas;   s0(69) = y_pallas;    s0(70) = vy_pallas;    s0(71) = z_pallas;    s0(72) = vz_pallas;
 
 
+batch = 1;
+step = 1;
+eclipse_save = false;
+ckpt = struct('s0', s0, 'batch', batch, 'step', step, 'eclipse_save', eclipse_save);
+ckpt_file = "out/ckpt";
+stop_file = "STOP";
+if isfile(ckpt_file)
+    ckpt = load(ckpt_file).ckpt;
+    s0 = ckpt.s0;
+    batch = ckpt.batch;
+    step = ckpt.step;
+    eclipse_save = ckpt.eclipse_save;
+end
+
+if isfile(stop_file)
+    delete(stop_file);
+end
+
+
 %x0cm = (alfa3*s0(13) + alfa4*s0(19))/(alfa3 + alfa4);
 %y0cm = (alfa3*s0(15) + alfa4*s0(21))/(alfa3 + alfa4);
 %psi03 = atand(y0cm/x0cm);
@@ -119,7 +138,7 @@ AccuratedFactor=3;
 t0 = 0; 
 t1 = 0.001/AccuratedFactor;              %Accurated steps
 n = 1000*AccuratedFactor;                %Accurated steps
-
+fprintf("%d\n", n);
 u = 1; v = 1;
 SolarTime = zeros(1:u,2);
 LunarTime = zeros(1:v,2);
@@ -129,7 +148,9 @@ for h=2:3
     alfa_m = zeros (10000,1);
     alfa_s = zeros (10000,1);
     
-    
+    if isfile(stop_file)
+        fprintf("DOOMED!\n");
+    end
     for m=1:n   
         tspan = linspace(t0,t1,10001);
         [t s]  =  ode45('F13Raccurated', tspan, s0);
@@ -197,89 +218,91 @@ for h=2:3
         t0 = t1;
         t1 = t1 + 0.001/AccuratedFactor;              %Accurated steps
 
-        %Defining equatorial coordinates for Moon and Sun: declination(delta) & right ascension(alpha)
+        if eclipse_save
+            %Defining equatorial coordinates for Moon and Sun: declination(delta) & right ascension(alpha)
 
-        xe = xyz(:,7);       ye = xyz(:,8);          ze = xyz(:,9);    
-        xm = xyz(:,10);       ym = xyz(:,11);          zm = xyz(:,12);
-        xs = xyz(:,37);        ys = xyz(:,38);           zs = xyz(:,39);
+            xe = xyz(:,7);       ye = xyz(:,8);          ze = xyz(:,9);    
+            xm = xyz(:,10);       ym = xyz(:,11);          zm = xyz(:,12);
+            xs = xyz(:,37);        ys = xyz(:,38);           zs = xyz(:,39);
 
-        Rm = sqrt((xm-xe).^2+(ym-ye).^2+(zm-ze).^2);
-        Rs = sqrt((xs-xe).^2+(ys-ye).^2+(zs-ze).^2);
+            Rm = sqrt((xm-xe).^2+(ym-ye).^2+(zm-ze).^2);
+            Rs = sqrt((xs-xe).^2+(ys-ye).^2+(zs-ze).^2);
 
-        delta_m = asin((zm-ze)./Rm);
+            delta_m = asin((zm-ze)./Rm);
 
-        salfa_m = (ym-ye)./(Rm.*abs(cos(delta_m)));
-
-
-        for l=1:length(salfa_m) 
-            if salfa_m(l,1)>0
-                alfa_m(l,1) = real(acos((xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
-            else
-                alfa_m(l,1) = real(pi+acos(-(xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
-            end
-        end
-
-        delta_s = asin((zs-ze)./Rs);
-
-        salfa_s = (ys-ye)./(Rs.*abs(cos(delta_s)));
+            salfa_m = (ym-ye)./(Rm.*abs(cos(delta_m)));
 
 
-        for l=1:length(salfa_s) 
-            if salfa_s(l,1)>0
-                alfa_s(l,1) = real(acos((xs(l,1)-xe(l,1))/((Rs(l,1))*abs(cos(delta_s(l,1))))));
-            else
-                alfa_s(l,1) = real(pi+acos(-(xs(l,1)-xe(l,1))/(Rs(l,1)*abs(cos(delta_s(l,1))))));
-            end
-        end
-
-        %xcm = (alfa3*xe + alfa4*xm)/(alfa3 + alfa4);
-        %ycm = (alfa3*ye + alfa4*ym)/(alfa3 + alfa4);
-        %psi3 = atand(ycm./xcm);
-        beta = acosd(cos(delta_s).*cos(alfa_s).*cos(delta_m).*cos(alfa_m)+...
-                     cos(delta_s).*sin(alfa_s).*cos(delta_m).*sin(alfa_m)+...
-                     sin(delta_s).*sin(delta_m));
-        
-        W = t*P0;
-
-        MEx = xm-xe;   MEy = ym-ye;   MEz = zm-ze;
-        SMx = xs-xm;   SMy = ys-ym;   SMz = zs-zm;
-        SEx = xs-xe;   SEy = ys-ye;   SEz = zs-ze;
-
-        dE = sqrt((MEy.*SMz - MEz.*SMy).^2 + (MEz.*SMx - MEx.*SMz).^2 +...
-                  (MEx.*SMy - MEy.*SMx).^2)./sqrt(SMx.^2+SMy.^2+SMz.^2);
-
-        dM = sqrt((MEy.*SEz - MEz.*SEy).^2 + (MEz.*SEx - MEx.*SEz).^2 +...
-                  (MEx.*SEy - MEy.*SEx).^2)./sqrt(SEx.^2+SEy.^2+SEz.^2);
-
-        %InterPolating!
-
-        ti = t(1,1):(t(2,1)-t(1,1))/10:t(end,1);
-        betai = interp1(t,beta,ti);
-        Wi = interp1(t,W,ti);
-        dEi = interp1(t,dE,ti);
-        dMi = interp1(t,dM,ti);
-
-        %Predicting time of solar & lunar eclipse!
-
-        ddE = diff(dEi); 
-        ddM = diff(dMi); 
-
-        for l=1:(length(ddE)-1);
-            if betai(l)<1
-                if (ddE(l)<0)&&(ddE(l+1)>0)
-                    SolarTime(u,:) = [Wi(l+1) dEi(l+1)];
-                    u = u+1;
+            for l=1:length(salfa_m) 
+                if salfa_m(l,1)>0
+                    alfa_m(l,1) = real(acos((xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
+                else
+                    alfa_m(l,1) = real(pi+acos(-(xm(l,1)-xe(l,1))/(Rm(l,1)*abs(cos(delta_m(l,1))))));
                 end
-                
-            end  
-        end
+            end
+
+            delta_s = asin((zs-ze)./Rs);
+
+            salfa_s = (ys-ye)./(Rs.*abs(cos(delta_s)));
 
 
-        for l=1:(length(ddM)-1);
-            if betai(l)>178.44
-                if (ddM(l)<0)&&(ddM(l+1)>0)
-                    LunarTime(v,:) = [Wi(l+1) dMi(l+1)];
-                    v = v+1;
+            for l=1:length(salfa_s) 
+                if salfa_s(l,1)>0
+                    alfa_s(l,1) = real(acos((xs(l,1)-xe(l,1))/((Rs(l,1))*abs(cos(delta_s(l,1))))));
+                else
+                    alfa_s(l,1) = real(pi+acos(-(xs(l,1)-xe(l,1))/(Rs(l,1)*abs(cos(delta_s(l,1))))));
+                end
+            end
+
+            %xcm = (alfa3*xe + alfa4*xm)/(alfa3 + alfa4);
+            %ycm = (alfa3*ye + alfa4*ym)/(alfa3 + alfa4);
+            %psi3 = atand(ycm./xcm);
+            beta = acosd(cos(delta_s).*cos(alfa_s).*cos(delta_m).*cos(alfa_m)+...
+                         cos(delta_s).*sin(alfa_s).*cos(delta_m).*sin(alfa_m)+...
+                         sin(delta_s).*sin(delta_m));
+            
+            W = t*P0;
+
+            MEx = xm-xe;   MEy = ym-ye;   MEz = zm-ze;
+            SMx = xs-xm;   SMy = ys-ym;   SMz = zs-zm;
+            SEx = xs-xe;   SEy = ys-ye;   SEz = zs-ze;
+
+            dE = sqrt((MEy.*SMz - MEz.*SMy).^2 + (MEz.*SMx - MEx.*SMz).^2 +...
+                      (MEx.*SMy - MEy.*SMx).^2)./sqrt(SMx.^2+SMy.^2+SMz.^2);
+
+            dM = sqrt((MEy.*SEz - MEz.*SEy).^2 + (MEz.*SEx - MEx.*SEz).^2 +...
+                      (MEx.*SEy - MEy.*SEx).^2)./sqrt(SEx.^2+SEy.^2+SEz.^2);
+
+            %InterPolating!
+
+            ti = t(1,1):(t(2,1)-t(1,1))/10:t(end,1);
+            betai = interp1(t,beta,ti);
+            Wi = interp1(t,W,ti);
+            dEi = interp1(t,dE,ti);
+            dMi = interp1(t,dM,ti);
+
+            %Predicting time of solar & lunar eclipse!
+
+            ddE = diff(dEi); 
+            ddM = diff(dMi); 
+
+            for l=1:(length(ddE)-1);
+                if betai(l)<1
+                    if (ddE(l)<0)&&(ddE(l+1)>0)
+                        SolarTime(u,:) = [Wi(l+1) dEi(l+1)];
+                        u = u+1;
+                    end
+                    
+                end  
+            end
+
+
+            for l=1:(length(ddM)-1);
+                if betai(l)>178.44
+                    if (ddM(l)<0)&&(ddM(l+1)>0)
+                        LunarTime(v,:) = [Wi(l+1) dMi(l+1)];
+                        v = v+1;
+                    end
                 end
             end
         end
