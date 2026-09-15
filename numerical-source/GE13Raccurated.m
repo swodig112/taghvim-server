@@ -112,16 +112,18 @@ s0(61) = x_vesta;    s0(62) = vx_vesta;    s0(63) = y_vesta;     s0(64) = vy_ves
 s0(67) = x_pallas;   s0(68) = vx_pallas;   s0(69) = y_pallas;    s0(70) = vy_pallas;    s0(71) = z_pallas;    s0(72) = vz_pallas;
 
 
+year0 = 1969 - 1;
 batch = 1;
 step = 1;
 eclipse_save = false;
 ckpt = struct('s0', s0, 'batch', batch, 'step', step, 'eclipse_save', eclipse_save);
+outdir = "out/"
 ckpt_file = "out/ckpt";
 stop_file = "STOP";
 if isfile(ckpt_file)
-    ckpt = load(ckpt_file).ckpt;
+    ckpt = load(ckpt_file).outckpt;
     s0 = ckpt.s0;
-    batch = ckpt.batch;
+    year0 = ckpt.year0 - 1;
     step = ckpt.step;
     eclipse_save = ckpt.eclipse_save;
 end
@@ -143,15 +145,23 @@ u = 1; v = 1;
 SolarTime = zeros(1:u,2);
 LunarTime = zeros(1:v,2);
 
-for h=2:3
-    
-    alfa_m = zeros (10000,1);
-    alfa_s = zeros (10000,1);
-    
-    if isfile(stop_file)
-        fprintf("DOOMED!\n");
+for h=1:100
+    if eclipse_save
+        alfa_m = zeros (10000,1);
+        alfa_s = zeros (10000,1);
     end
-    for m=1:n   
+    
+    year_s = zeros(n, 77);
+    fprintf("In Loop");
+    for m=step:n
+        % if isfile(stop_file)
+            % fprintf("DOOMED!\n");
+            % ckpt.s0 = s0;
+            % ckpt.year0 = year0 + h;
+            % ckpt.step = m;
+            % save_ckpt(ckpt_file, ckpt);
+            % break;
+        % end
         tspan = linspace(t0,t1,10001);
         [t s]  =  ode45('F13Raccurated', tspan, s0);
 
@@ -197,6 +207,7 @@ for h=2:3
                     alfa12*y12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
                     alfa13*y13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
 
+        
         s(:,77) = -(alfa1*z1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
                     alfa2*z2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
                     alfa3*z3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
@@ -210,7 +221,48 @@ for h=2:3
                     alfa12*z12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
                     alfa13*z13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
 
+        % s(end,73) = -(alfa1*x1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+        %             alfa2*x2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+        %             alfa3*x3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+        %             alfa4*x4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+        %             alfa5*x5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+        %             alfa6*x6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+        %             alfa7*x7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+        %             alfa8*x8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+        %             alfa9*x9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+        %             alfa11*x11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+        %             alfa12*x12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+        %             alfa13*x13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
 
+        % s(end,75) = -(alfa1*y1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+        %             alfa2*y2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+        %             alfa3*y3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+        %             alfa4*y4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+        %             alfa5*y5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+        %             alfa6*y6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+        %             alfa7*y7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+        %             alfa8*y8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+        %             alfa9*y9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+        %             alfa11*y11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+        %             alfa12*y12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+        %             alfa13*y13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
+
+        
+        % s(end,77) = -(alfa1*z1.*(1+(v1x.^2+v1y.^2+v1z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x1.^2+y1.^2+z1.^2))/(2*c^2))+...
+        %             alfa2*z2.*(1+(v2x.^2+v2y.^2+v2z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x2.^2+y2.^2+z2.^2))/(2*c^2))+...
+        %             alfa3*z3.*(1+(v3x.^2+v3y.^2+v3z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x3.^2+y3.^2+z3.^2))/(2*c^2))+...
+        %             alfa4*z4.*(1+(v4x.^2+v4y.^2+v4z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x4.^2+y4.^2+z4.^2))/(2*c^2))+...
+        %             alfa5*z5.*(1+(v5x.^2+v5y.^2+v5z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x5.^2+y5.^2+z5.^2))/(2*c^2))+...
+        %             alfa6*z6.*(1+(v6x.^2+v6y.^2+v6z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x6.^2+y6.^2+z6.^2))/(2*c^2))+...
+        %             alfa7*z7.*(1+(v7x.^2+v7y.^2+v7z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x7.^2+y7.^2+z7.^2))/(2*c^2))+...
+        %             alfa8*z8.*(1+(v8x.^2+v8y.^2+v8z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x8.^2+y8.^2+z8.^2))/(2*c^2))+...
+        %             alfa9*z9.*(1+(v9x.^2+v9y.^2+v9z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x9.^2+y9.^2+z9.^2))/(2*c^2))+...
+        %             alfa11*z11.*(1+(v11x.^2+v11y.^2+v11z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x11.^2+y11.^2+z11.^2))/(2*c^2))+...
+        %             alfa12*z12.*(1+(v12x.^2+v12y.^2+v12z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x12.^2+y12.^2+z12.^2))/(2*c^2))+...
+        %             alfa13*z13.*(1+(v13x.^2+v13y.^2+v13z.^2)/(2*c^2)-4*pi^2*(alfa10./sqrt(x13.^2+y13.^2+z13.^2))/(2*c^2)))/alfa10;
+
+        % csvwrite(sprintf("%sresult-%d-%d.csv", outdir, year0 + h, m),s(end,:));
+        year_s(m, :) = s(end, :);
         t = t(1:end-1,:);    
         xyz = s(1:end-1,1:2:77);
 
@@ -308,7 +360,23 @@ for h=2:3
         end
 
     end
-
+    ckpt.s0 = s0;
+    ckpt.year0 = year0 + h;
+    ckpt.step = 1;
+    save_ckpt(ckpt_file, ckpt);
+    csvwrite(sprintf("%sresult-%d.csv", outdir, year0 + h),year_s);
+    if isfile(stop_file)
+        % fprintf("HERE");
+        
+        break;
+    % else
+        % fprintf("Finishing loop");
+        % ckpt.s0 = s0;
+        % ckpt.year0 = year0 + h;
+        % ckpt.step = m;
+        % save_ckpt(ckpt_file, ckpt);
+    end
+    step = 1;
 end
 
 toc
