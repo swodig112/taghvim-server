@@ -24,7 +24,7 @@ def home():
     # return get_data(request.json)
     data = request.json
     time = date_time_to_secs(data)
-    xyz = DF[get_entry_index_by_date(time)]
+    xyz = np.array(DF[get_entry_index_by_date(time)])
     idx = int(data['objectName'])
     r = xyz[idx*6:(idx+1)*6]
     v = r[1::2]
