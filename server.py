@@ -13,7 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(
     app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
 )
-DF  = pd.read_csv('./mixed_taghvim.csv')
+DF  = np.load("combined.npy", mmap_mode="r")
 CORS(app)
 
 @app.route("/", methods=['POST'])
@@ -24,7 +24,7 @@ def home():
     # return get_data(request.json)
     data = request.json
     time = date_time_to_secs(data)
-    xyz = DF.values[get_entry_index_by_date(time)]
+    xyz = DF[get_entry_index_by_date(time)]
     idx = int(data['objectName'])
     r = xyz[idx*6:(idx+1)*6]
     v = r[1::2]
