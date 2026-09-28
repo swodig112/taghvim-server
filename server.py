@@ -79,7 +79,7 @@ def mix_csvs(files):
     return df
 
 def get_entry_index_by_date(date):
-    return int((date - HIST0) / (31536 / 3))
+    return int((date - HIST0) / (P0*24*3600 / 3000))
 
 def date_time_to_secs(data):
     date = data['date']
