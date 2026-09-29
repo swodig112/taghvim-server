@@ -31,7 +31,7 @@ def home():
     r = r[0::2]
     re = xyz[2*6:3*6]
     re = re[0::2]
-    r, v = convert_to_metric(r, v)
+    # r, v = convert_to_metric(r, v)
     if idx != 2:
         alfa, delta = convert_earth(r, re)
     else:
