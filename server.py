@@ -66,8 +66,9 @@ def convert_to_metric(r,v):
 
 def convert_earth(r, re):
     r -= re
-    R  = np.dot(r,r)
-    delta = np.asin(r[2]/R)
+    # R  = np.dot(r,r)
+    # delta = np.asin(r[2]/R)
+    delta = np.atan2(r[2], np.sqrt(r[1]**2 + r[0]**2))
     alfa = np.atan2(r[1], r[0])# + 2 * np.pi
     return np.degrees(alfa), np.degrees(delta)
  
