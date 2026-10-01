@@ -162,8 +162,8 @@ for h=1:100
             % save_ckpt(ckpt_file, ckpt);
             % break;
         % end
-        tspan = linspace(t0,t1,10001);
-        [t s]  =  ode45('F13Raccurated', tspan, s0);
+        % tspan = linspace(t0,t1,10001);
+        [t s]  =  ode45('F13Raccurated', [t0 t1], s0);
 
         %Defining x10 & y10 & z10; 10th body's position!
 
