@@ -10,22 +10,6 @@ clear;
 
 tic
 
-% --- persistence / run control (edit these) ---
-RUN_DIR = 'sim_output';
-RESUME = true;              % load checkpoint.mat if present
-START_YEAR = 1969;            % calendar year at t = 0 (initial conditions epoch)
-END_YEAR = 2050;            % stop after this calendar year (lower to limit a run)
-SAVE_CHECKPOINT_EVERY = 1;   % write checkpoint every N macro-steps
-MACRO_SUBSTEPS = 1;           % >1 subdivides each macro-step for finer propagation
-ODE_OPTS = odeset('RelTol', 1e-13, 'AbsTol', 1e-15);
-PHYSICS_VERSION = 1;          % bump if F13Raccurated.m changes; invalidates old checkpoints
-MAX_ECLIPSE_EVENTS = 50000;
-if ~exist(RUN_DIR, 'dir'), mkdir(RUN_DIR); end
-years_dir = fullfile(RUN_DIR, 'years');
-if ~exist(years_dir, 'dir'), mkdir(years_dir); end
-ckpt_file = fullfile(RUN_DIR, 'checkpoint.mat');
-stop_file = fullfile(RUN_DIR, 'STOP');
-
 % initial conditions
 
 M10 = 1.9885e+30+(4.7014e+25)*1.3;         % Mass of the Sun
@@ -126,9 +110,7 @@ s0(49) = x_neptune;  s0(50) = vx_neptune;  s0(51) = y_neptune;   s0(52) = vy_nep
 s0(55) = x_ceres;    s0(56) = vx_ceres;    s0(57) = y_ceres;     s0(58) = vy_ceres;     s0(59) = z_ceres;     s0(60) = vz_ceres;
 s0(61) = x_vesta;    s0(62) = vx_vesta;    s0(63) = y_vesta;     s0(64) = vy_vesta;     s0(65) = z_vesta;     s0(66) = vz_vesta;
 s0(67) = x_pallas;   s0(68) = vx_pallas;   s0(69) = y_pallas;    s0(70) = vy_pallas;    s0(71) = z_pallas;    s0(72) = vz_pallas;
-s0 = s0(1:72);
-% s0=[-0.359908389879598,3.58809503736678,-0.220658235113841,-7.03495801631272,-0.0811887619074779,-4.13158369969412,-0.636863876474098,-3.42041039543361,0.291968958983771,-6.08385197715788,0.171524723503386,-2.52250306391652,0.0564699603232721,6.16771863305261,-0.925396489569892,0.289612048296327,-0.401310799790468,0.126997309143604,0.0550737842610446,5.9778694018671,-0.923594550779811,0.16384488056972,-0.400531021774922,0.0951969715522454,0.265921632655998,5.2103980003796,-1.27336146155268,1.30347250698305,-0.591360852346042,0.458679963632332,-4.02685343469696,1.80920091059223,-3.37570194694583,-1.75117986501784,-1.34712971808208,-0.793306256463426,0.255939952684971,1.91636340446311,-9.334481822299,0.0799986490231381,-3.89185040586728,-0.0524544192563376,16.7998459244305,-0.756193535620213,9.42171240670439,1.07540025746717,3.80890353284995,0.470961963759889,28.6430422159319,0.283771616194577,-6.87549443749156,1.04463754388244,-3.19877467461586,0.416391681091061,-2.43697575442123,-1.06311650311049,0.396960910578076,-3.6275019660885,0.683821759394055,-1.49402793951369,-0.107065884540838,4.41446048447448,-1.99871543661645,-0.0826111549856102,-0.78217474366401,-0.611095661809265,-0.879398090351474,-4.25992535536455,1.92743306852093,-2.00866572693579,-0.31685244248489,0.699344905230987,0.0015639648343384,0,0.00583704203520419,0,0.00239833238967724]
-% s0 = s0(1:72);
+
 
 year0 = 1969 - 1;
 batch = 1;
@@ -160,8 +142,8 @@ t1 = 0.001/AccuratedFactor;              %Accurated steps
 n = 1000*AccuratedFactor;                %Accurated steps
 fprintf("%d\n", n);
 u = 1; v = 1;
-SolarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
-LunarTime = zeros(MAX_ECLIPSE_EVENTS, 2);
+SolarTime = zeros(1:u,2);
+LunarTime = zeros(1:v,2);
 
 for h=1:100
     if eclipse_save
