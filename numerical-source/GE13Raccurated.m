@@ -123,7 +123,7 @@ stop_file = "STOP";
 if isfile(ckpt_file)
     ckpt = load(ckpt_file).outckpt;
     s0 = ckpt.s0;
-    year0 = ckpt.year0 - 1;
+    year0 = ckpt.year0;
     step = ckpt.step;
     eclipse_save = ckpt.eclipse_save;
 end
