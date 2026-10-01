@@ -80,7 +80,10 @@ def mix_csvs(files):
     return df
 
 def get_entry_index_by_date(date):
-    return int((date - HIST0) / (P0*24*3600 / 3000))
+    idx = int((date - HIST0) / 3153.6)
+    if idx < 0:
+        raise ValueError
+    return idx
 
 def date_time_to_secs(data):
     date = data['date']
